@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
 
   return {
-    base: '/precificaatelieprodu-o/',
+    base: './',
 
     plugins: [
       react(),
