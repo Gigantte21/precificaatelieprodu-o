@@ -1,0 +1,120 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    // O email do administrador principal deve ser o mesmo definido em VITE_ADMIN_EMAIL
+    // Para bootstrap seguro sem hardcode direto em todas as regras, usamos uma variÃ¡vel local.
+    function isAdmin() {
+      // Admin email from constants.ts
+    let adminEmail = "ricoslim@gmail.com";
+      return isAuthenticated() && (
+        request.auth.token.email == adminEmail ||
+        (exists(getUserPath()) && get(getUserPath()).data.get('role', '') == 'ADMIN')
+      );
+    }
+
+    function isGerente() {
+      return isAuthenticated() && 
+             exists(getUserPath()) && 
+             get(getUserPath()).data.get('role', '') == 'GERENTE';
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Checks if the user has access to a specific store
+    function hasStoreAccess(storeId) {
+      return isAuthenticated() && storeId != null && (
+        isAdmin() || (
+          exists(getUserPath()) && 
+          get(getUserPath()).data.get('status', '') == 'aprovado' &&
+          get(getUserPath()).data.get('storeIds', []).hasAny([storeId])
+        )
+      );
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /stores/{storeId} {
+      // ADMIN pode ler tudo. Outros só podem ler se tiverem acesso.
+      allow list: if isAuthenticated();
+      allow get: if isAdmin() || hasStoreAccess(storeId);
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (hasStoreAccess(storeId) && isGerente());
+      allow delete: if isAdmin();
+    }
+
+    match /users/{userId} {
+      // UsuÃ¡rio lÃª o prÃ³prio. ADMIN lÃª todos. GERENTE lÃª usuÃ¡rios das suas lojas (nÃ£o admins).
+      allow read: if isOwner(userId) || isAdmin() || (isGerente() && get(getUserPath()).data.get('storeIds', []).hasAny(resource.data.get('storeIds', [])));
+      
+      allow create: if isAdmin() || 
+                    (isGerente() && request.resource.data.get('role', '') != 'ADMIN') ||
+                    (isOwner(userId) && request.resource.data.get('role', '') == 'OPERADOR' && request.resource.data.get('status', '') == 'pendente');
+      
+      allow update: if isAdmin() || 
+                    (isGerente() && resource.data.get('role', '') != 'ADMIN' && request.resource.data.get('role', '') != 'ADMIN') ||
+                    (isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'phone']));
+      
+      allow delete: if isAdmin() || (isGerente() && resource.data.get('role', '') != 'ADMIN');
+    }
+
+    match /costBases/{storeId} {
+      allow list: if isAuthenticated();
+      allow get: if isAdmin() || hasStoreAccess(storeId);
+      allow write: if isAdmin() || (hasStoreAccess(storeId) && isGerente());
+    }
+
+    match /materials/{materialId} {
+      allow list: if isAuthenticated();
+      allow get: if isAdmin() || hasStoreAccess(resource.data.storeId);
+      allow create, update: if isAdmin() || hasStoreAccess(request.resource.data.storeId);
+      allow delete: if isAdmin() || (hasStoreAccess(resource.data.storeId) && isGerente());
+    }
+
+    match /products/{productId} {
+      allow list: if isAuthenticated();
+      allow get: if isAdmin() || hasStoreAccess(resource.data.storeId);
+      allow create, update: if isAdmin() || hasStoreAccess(request.resource.data.storeId);
+      allow delete: if isAdmin() || (hasStoreAccess(resource.data.storeId) && isGerente());
+    }
+
+    match /quotes/{quoteId} {
+      allow list: if isAuthenticated();
+      allow get: if isAdmin() || hasStoreAccess(resource.data.storeId);
+      allow create, update: if isAdmin() || hasStoreAccess(request.resource.data.storeId);
+      allow delete: if isAdmin() || (hasStoreAccess(resource.data.storeId) && isGerente());
+    }
+
+    match /clients/{clientId} {
+      allow list: if isAuthenticated();
+      allow get: if isAdmin() || hasStoreAccess(resource.data.storeId);
+      allow create, update: if isAdmin() || hasStoreAccess(request.resource.data.storeId);
+      allow delete: if isAdmin() || (hasStoreAccess(resource.data.storeId) && isGerente());
+    }
+
+    match /suppliers/{supplierId} {
+      allow list: if isAuthenticated();
+      allow get: if isAdmin() || hasStoreAccess(resource.data.storeId);
+      allow create, update: if isAdmin() || hasStoreAccess(request.resource.data.storeId);
+      allow delete: if isAdmin() || (hasStoreAccess(resource.data.storeId) && isGerente());
+    }
+    
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
