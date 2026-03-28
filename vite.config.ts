@@ -7,61 +7,40 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
 
   return {
-    base: './',
+    base: '/precificaatelieprodu-o/',
+
     plugins: [
       react(),
       VitePWA({
         registerType: 'prompt',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
-        injectRegister: 'auto',
-        workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-          cleanupOutdatedCaches: true,
-          clientsClaim: true,
-          skipWaiting: false
-        },
+        includeAssets: ['favicon.ico'],
         manifest: {
-          name: 'Precifica Já - Sistema de Precificação',
-          short_name: 'Precifica Já',
-          description: 'Sistema profissional de precificação e orçamentos para artesãos.',
-          theme_color: '#000000',
-          background_color: '#ffffff',
-          display: 'standalone',
-          orientation: 'portrait',
-          scope: './',
+          name: 'PrecificaAteliê',
+          short_name: 'Precifica',
           start_url: './',
+          display: 'standalone',
+          background_color: '#ffffff',
+          theme_color: '#000000',
           icons: [
             {
               src: 'pwa-192x192.png',
               sizes: '192x192',
-              type: 'image/png',
-              purpose: 'any'
+              type: 'image/png'
             },
             {
               src: 'pwa-512x512.png',
               sizes: '512x512',
-              type: 'image/png',
-              purpose: 'any'
-            },
-            {
-              src: 'pwa-maskable-192x192.png',
-              sizes: '192x192',
-              type: 'image/png',
-              purpose: 'maskable'
-            },
-            {
-              src: 'pwa-maskable-512x512.png',
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'maskable'
+              type: 'image/png'
             }
           ]
         }
       })
     ],
+
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
     },
+
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.')
